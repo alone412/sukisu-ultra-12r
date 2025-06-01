@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Maximize build space
-        uses: easimon/maximize-build-space@master
+        uses: easim9on/maximize-build-space@master
         with:
           root-reserve-mb: 8192
           temp-reserve-mb: 2048
@@ -148,7 +148,7 @@ jobs:
 
       - name: Install repo tool
         run: |
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/r3epo
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
           chmod a+x ~/repo
           sudo mv ~/repo /usr/local/bin/repo
 
@@ -467,7 +467,7 @@ jobs:
           name: AnyKernel3_SukiSUUltra_${{ env.KSUVER }}_${{ steps.feil_clean.outputs.value }}${{ steps.suffix.outputs.value }}
           path: ./AnyKernel3Suki/*
       - name: Notify on failure via Telegram
-        if: steps.buildstep.outcome == 'failure'
+        if: failure()
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
