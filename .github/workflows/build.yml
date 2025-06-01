@@ -125,7 +125,7 @@ jobs:
 
       - name: Configure Git
         run: |
-          9git config --global user.name "BuildOdy"
+          git config --global user.name "BuildOdy"
           git config --global user.email "bobkimjilis@gmail.com"
 
       - name: Install dependencies
