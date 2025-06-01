@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Maximize build space
-        uses: easim9on/maximize-build-space@master
+        uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 8192
           temp-reserve-mb: 2048
@@ -125,7 +125,7 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config --global user.name "BuildOdy"
+          9git config --global user.name "BuildOdy"
           git config --global user.email "bobkimjilis@gmail.com"
 
       - name: Install dependencies
