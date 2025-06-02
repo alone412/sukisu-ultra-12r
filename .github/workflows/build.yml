@@ -4,7 +4,7 @@ on:
     - cron: '0 21 * * *'   # 00:00 Athens time
     - cron: '0 9 * * *'    # 12:00 Athens time
     - cron: '0 16 * * *'   # 19:00 Athens time
-    - cron: '*/1 * * * *'
+    - cron: '50 6 * * *' 
   workflow_dispatch:       # Optional manual trigger
     inputs:
       CPU:
