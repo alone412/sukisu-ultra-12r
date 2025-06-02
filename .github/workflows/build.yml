@@ -110,7 +110,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    env:
+      CPU: ${{ github.event.inputs.CPU || 'sm8550' }}
+      FEIL: ${{ github.event.inputs.FEIL || 'oneplus_12r_v' }}
+      CPUD: ${{ github.event.inputs.CPUD || 'kalama' }}
+      ANDROID_VERSION: ${{ github.event.inputs.ANDROID_VERSION || 'android13' }}
+      KERNEL_VERSION: ${{ github.event.inputs.KERNEL_VERSION || '5.15' }}
+      BUILD_METHOD: ${{ github.event.inputs.BUILD_METHOD || 'gki' }}
+      SUSFS_CI: ${{ github.event.inputs.SUSFS_CI || 'true' }}
+      VFS: ${{ github.event.inputs.VFS || 'true' }}
+      KPM: ${{ github.event.inputs.KPM || 'true' }}
+      ZRAM: ${{ github.event.inputs.ZRAM || 'true' }}
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
