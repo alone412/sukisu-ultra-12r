@@ -118,10 +118,10 @@ jobs:
       ANDROID_VERSION: ${{ github.event.inputs.ANDROID_VERSION || 'android13' }}
       KERNEL_VERSION: ${{ github.event.inputs.KERNEL_VERSION || '5.15' }}
       BUILD_METHOD: ${{ github.event.inputs.BUILD_METHOD || 'gki' }}
-      SUSFS_CI: ${{ github.event.inputs.SUSFS_CI || 'true' }}
-      VFS: ${{ github.event.inputs.VFS || 'true' }}
-      KPM: ${{ github.event.inputs.KPM || 'true' }}
-      ZRAM: ${{ github.event.inputs.ZRAM || 'true' }}
+      SUSFS_CI: ${{ github.event.inputs.SUSFS_CI != 'false' }}
+      VFS: ${{ github.event.inputs.VFS != 'false' }}
+      KPM: ${{ github.event.inputs.KPM != 'false' }}
+      ZRAM: ${{ github.event.inputs.ZRAM != 'false' }}
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
