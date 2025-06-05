@@ -118,10 +118,10 @@ jobs:
       ANDROID_VERSION: ${{ github.event.inputs.ANDROID_VERSION || 'android13' }}
       KERNEL_VERSION: ${{ github.event.inputs.KERNEL_VERSION || '5.15' }}
       BUILD_METHOD: ${{ github.event.inputs.BUILD_METHOD || 'gki' }}
-      SUSFS_CI: ${{ github.event.inputs.SUSFS_CI != 'false' }}
-      VFS: ${{ github.event.inputs.VFS != 'false' }}
-      KPM: ${{ github.event.inputs.KPM != 'false' }}
-      ZRAM: ${{ github.event.inputs.ZRAM != 'false' }}
+      SUSFS_CI: ${{ github.event.inputs.SUSFS_CI || 'true' }}
+      VFS: ${{ github.event.inputs.VFS || 'true' }}
+      KPM: ${{ github.event.inputs.KPM || 'true' }}
+      ZRAM: ${{ github.event.inputs.ZRAM || 'true' }}
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
@@ -146,16 +146,17 @@ jobs:
 
       - name: Show selected inputs debug
         run: |
-          echo "Selected CPU: ${{ github.event.inputs.CPU }}"
-          echo "Selected FEIL: ${{ github.event.inputs.FEIL }}"
-          echo "Selected CPUD: ${{ github.event.inputs.CPUD }}"
-          echo "Selected ANDROID_VERSION: ${{ github.event.inputs.ANDROID_VERSION }}"
-          echo "Selected KERNEL_VERSION: ${{ github.event.inputs.KERNEL_VERSION }}"
-          echo "Selected BUILD_METHOD: ${{ github.event.inputs.BUILD_METHOD }}"
-          echo "Selected SUSFS_CI: ${{ github.event.inputs.SUSFS_CI }}"
-          echo "Selected ZRAM: ${{ github.event.inputs.ZRAM }}"
-          echo "Selected VFS: ${{ github.event.inputs.VFS }}"
-          echo "Selected KPM: ${{ github.event.inputs.KPM }}"
+          echo "Selected CPU: $CPU"
+          echo "Selected FEIL: $FEIL"
+          echo "Selected CPUD: $CPUD"
+          echo "Selected ANDROID_VERSION: $ANDROID_VERSION"
+          echo "Selected KERNEL_VERSION: $KERNEL_VERSION"
+          echo "Selected BUILD_METHOD: $BUILD_METHOD"
+          echo "Selected SUSFS_CI: $SUSFS_CI"
+          echo "Selected ZRAM: $ZRAM"
+          echo "Selected VFS: $VFS"
+          echo "Selected KPM: $KPM"
+          echo "Event name: ${{ github.event_name }}"
 
       - name: Install repo tool
         run: |
@@ -166,7 +167,7 @@ jobs:
       - name: Initialize repo and sync
         run: |
           mkdir kernel_workspace && cd kernel_workspace
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/${{ github.event.inputs.CPU }} -m ${{ github.event.inputs.FEIL }}.xml --depth=1
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/$CPU -m $FEIL.xml --depth=1
           repo sync
           if [  -e kernel_platform/common/BUILD.bazel ]; then
           sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' kernel_platform/common/BUILD.bazel
@@ -205,15 +206,15 @@ jobs:
       - name: Apply Patches SukiSU Ultra
         run: |
           cd kernel_workspace
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$ANDROID_VERSION-$KERNEL_VERSION
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           cd kernel_platform
           echo "working-on-patching-the-kernel-with-susfs"
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch ./common/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-$ANDROID_VERSION-$KERNEL_VERSION.patch ./common/
           cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
 
-          if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
+          if [ "$ZRAM" = "true" ]; then
           echo "working-on-zram-patch-for-the-kernel"
           cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./common/include/linux
           cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./common/lib
@@ -222,7 +223,7 @@ jobs:
           fi
 
           cd ./common
-          patch -p1 < 50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch || true
+          patch -p1 < 50_add_susfs_in_gki-$ANDROID_VERSION-$KERNEL_VERSION.patch || true
           echo "Done"
 
       - name: Apply Hide Stuff Patches
@@ -235,7 +236,7 @@ jobs:
       - name: Apply VFS
         run: |
           cd kernel_workspace/kernel_platform/common
-          if [ "${{ github.event.inputs.VFS }}" = "true" ]; then
+          if [ "$VFS" = "true" ]; then
           cp ../../SukiSU_patch/hooks/syscall_hooks.patch ./
           echo "Working-On-Vfs-Patch"
           patch -p1 -F 3 < syscall_hooks.patch
@@ -245,8 +246,8 @@ jobs:
       - name: Apply LZ4KD
         run: |
           cd kernel_workspace/kernel_platform/common
-          if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
-            cp ../../SukiSU_patch/other/zram/zram_patch/${{ github.event.inputs.KERNEL_VERSION }}/lz4kd.patch ./
+          if [ "$ZRAM" = "true" ]; then
+            cp ../../SukiSU_patch/other/zram/zram_patch/$KERNEL_VERSION/lz4kd.patch ./
             echo "Patching-LZ4KD"
             patch -p1 -F 3 < lz4kd.patch || true
             echo 'Completed-LZ4KD-Patch'
@@ -257,26 +258,25 @@ jobs:
         run: |
           cd kernel_workspace/kernel_platform
           CONFIG_FILE=./common/arch/arm64/configs/gki_defconfig
-          KERNEL_VERSION="${{ github.event.inputs.KERNEL_VERSION }}"
 
           # SukiSU Ultra config
           echo "CONFIG_KSU=y" >> "$CONFIG_FILE"
           echo "CONFIG_KPM=y" >> "$CONFIG_FILE"
-          if [ "${{ github.event.inputs.VFS }}" = "false" ]; then
+          if [ "$VFS" = "false" ]; then
           echo "CONFIG_KPROBES=y" >> "$CONFIG_FILE"
           fi
           # VFS config
-          if [ "${{ github.event.inputs.VFS }}" = "true" ]; then
+          if [ "$VFS" = "true" ]; then
             echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$CONFIG_FILE"
             echo "CONFIG_KSU_MANUAL_HOOK=y" >> "$CONFIG_FILE"
           fi
 
-          if [ "${{ github.event.inputs.VFS }}" = "false" ]; then
+          if [ "$VFS" = "false" ]; then
             echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> "$CONFIG_FILE"
           fi
 
           # SUSFS config
-          if [ "${{ github.event.inputs.VFS }}" = "true" ]; then
+          if [ "$VFS" = "true" ]; then
           echo "CONFIG_KSU_SUSFS=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$CONFIG_FILE"
@@ -301,10 +301,10 @@ jobs:
           sed -i 's/check_defconfig//' ./common/build.config.gki
 
           # LZ4KD-Config
-          if [ "${{ github.event.inputs.ZRAM }}" = "true" ]; then
+          if [ "$ZRAM" = "true" ]; then
           CONFIG_FILE=./common/arch/arm64/configs/gki_defconfig
 
-            if [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.10" ]; then
+            if [ "$KERNEL_VERSION" = "5.10" ]; then
               echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
               echo "CONFIG_ZRAM=y" >> "$CONFIG_FILE"
               echo "CONFIG_MODULE_SIG=n" >> "$CONFIG_FILE"
@@ -312,7 +312,7 @@ jobs:
               echo "CONFIG_ZRAM_DEF_COMP_LZ4KD=y" >> "$CONFIG_FILE"
             fi
 
-            if [ "${{ github.event.inputs.KERNEL_VERSION }}" != "6.6" ] && [ "${{ github.event.inputs.KERNEL_VERSION }}" != "5.10" ]; then
+            if [ "$KERNEL_VERSION" != "6.6" ] && [ "$KERNEL_VERSION" != "5.10" ]; then
               if grep -q "CONFIG_ZSMALLOC" -- "$CONFIG_FILE"; then
                 sed -i 's/CONFIG_ZSMALLOC=m/CONFIG_ZSMALLOC=y/g' "$CONFIG_FILE"
               else
@@ -321,24 +321,24 @@ jobs:
               sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$CONFIG_FILE"
             fi
 
-            if [ "${{ github.event.inputs.KERNEL_VERSION }}" = "6.6" ]; then
+            if [ "$KERNEL_VERSION" = "6.6" ]; then
               echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
               sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$CONFIG_FILE"
             fi
 
-            if [ "${{ github.event.inputs.ANDROID_VERSION }}" = "android14" ] || [ "${{ github.event.inputs.ANDROID_VERSION }}" = "android15" ]; then
+            if [ "$ANDROID_VERSION" = "android14" ] || [ "$ANDROID_VERSION" = "android15" ]; then
               if [  -e ./common/modules.bzl ]; then
                 sed -i 's/"drivers\/block\/zram\/zram\.ko",//g; s/"mm\/zsmalloc\.ko",//g' "./common/modules.bzl"
               fi
 
               if [  -e ./msm-kernel/modules.bzl ]; then
                 sed -i 's/"drivers\/block\/zram\/zram\.ko",//g; s/"mm\/zsmalloc\.ko",//g' "./msm-kernel/modules.bzl"
-                echo "CONFIG_ZSMALLOC=y" >> "msm-kernel/arch/arm64/configs/${{ github.event.inputs.CPUD }}-GKI.config"
-                echo "CONFIG_ZRAM=y" >> "msm-kernel/arch/arm64/configs/${{ github.event.inputs.CPUD }}-GKI.config"
+                echo "CONFIG_ZSMALLOC=y" >> "msm-kernel/arch/arm64/configs/$CPUD-GKI.config"
+                echo "CONFIG_ZRAM=y" >> "msm-kernel/arch/arm64/configs/$CPUD-GKI.config"
               fi
               
               echo "CONFIG_MODULE_SIG_FORCE=n" >> "$CONFIG_FILE"
-            elif [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.10" ] || [ "${{ github.event.inputs.KERNEL_VERSION }}" = "5.15" ]; then
+            elif [ "$KERNEL_VERSION" = "5.10" ] || [ "$KERNEL_VERSION" = "5.15" ]; then
               rm "common/android/gki_aarch64_modules"
               touch "common/android/gki_aarch64_modules"
             fi
@@ -353,27 +353,27 @@ jobs:
           fi
 
       - name: Build kernel
-        if: ${{ github.event.inputs.CPU == 'sm8650' || github.event.inputs.CPU == 'sm7675' }}
+        if: ${{ env.CPU == 'sm8650' || env.CPU == 'sm7675' }}
         run: |
           cd kernel_workspace
-          ./kernel_platform/build_with_bazel.py -t ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
+          ./kernel_platform/build_with_bazel.py -t $CPUD $BUILD_METHOD
           
       - name: Fallback build kernel
-        if: ${{ github.event.inputs.CPU != 'sm8650' && github.event.inputs.CPU != 'sm7675' }}
+        if: ${{ env.CPU != 'sm8650' && env.CPU != 'sm7675' }}
         run: |
          cd kernel_workspace
-         LTO=thin SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0 ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
+         LTO=thin SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0 ./kernel_platform/oplus/build/oplus_build_kernel.sh $CPUD $BUILD_METHOD
 
       - name: Make AnyKernel3
         run: |
           git clone https://github.com/OdymarGamer/AnyKernel3Suki --depth=1
           rm -rf ./AnyKernel3Suki/.git
 
-          dir1="kernel_workspace/kernel_platform/out/msm-kernel-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.BUILD_METHOD }}/dist/"
-          dir2="kernel_workspace/kernel_platform/bazel-out/k8-fastbuild/bin/msm-kernel/${{ github.event.inputs.CPUD }}_gki_kbuild_mixed_tree/"
-          dir3="kernel_workspace/kernel_platform/out/msm-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.BUILD_METHOD }}/dist/"
-          dir4="kernel_workspace/kernel_platform/out/msm-kernel-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.BUILD_METHOD }}/gki_kernel/common/arch/arm64/boot/"
-          dir5="kernel_workspace/kernel_platform/out/msm-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.BUILD_METHOD }}/gki_kernel/common/arch/arm64/boot/"
+          dir1="kernel_workspace/kernel_platform/out/msm-kernel-$CPUD-$BUILD_METHOD/dist/"
+          dir2="kernel_workspace/kernel_platform/bazel-out/k8-fastbuild/bin/msm-kernel/$CPUD_gki_kbuild_mixed_tree/"
+          dir3="kernel_workspace/kernel_platform/out/msm-$CPUD-$CPUD-$BUILD_METHOD/dist/"
+          dir4="kernel_workspace/kernel_platform/out/msm-kernel-$CPUD-$BUILD_METHOD/gki_kernel/common/arch/arm64/boot/"
+          dir5="kernel_workspace/kernel_platform/out/msm-$CPUD-$CPUD-$BUILD_METHOD/gki_kernel/common/arch/arm64/boot/"
           target1="./AnyKernel3Suki/"
           target2="./kernel_workspace/kernel"
 
@@ -407,7 +407,7 @@ jobs:
           fi
 
           # Optionally copy other new files (if they exist)
-          if [ "${{ github.event.inputs.CPU }}" = "sm8750" ]; then
+          if [ "$CPU" = "sm8750" ]; then
           for file in dtbo.img system_dlkm.erofs.img vendor_dlkm.img vendor_boot.img; do
             if [ -f "$dir1$file" ]; then
               target_name="$file"
@@ -423,9 +423,9 @@ jobs:
           fi
 
       - name: Apply patch_linux and replace Image
-        if: ${{ github.event.inputs.KPM == 'true' }}
+        if: ${{ env.KPM == 'true' }}
         run: |
-          cd /home/runner/work/sukisuultrasusfsop12rauto/sukisuultrasusfsop12rauto/kernel_workspace/kernel_platform/out/msm-kernel-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.BUILD_METHOD }}/dist
+          cd /home/runner/work/sukisuultrasusfsop12rauto/sukisuultrasusfsop12rauto/kernel_workspace/kernel_platform/out/msm-kernel-$CPUD-$BUILD_METHOD/dist
           curl -LO https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
           chmod +x patch_linux
           ./patch_linux
@@ -435,7 +435,7 @@ jobs:
 
       # Download SUSFS Module (CI)
       - name: Download Latest SUSFS Module from CI
-        if: ${{ github.event.inputs.SUSFS_CI == 'true' }}
+        if: ${{ env.SUSFS_CI == 'true' }}
         run: |
           LATEST_RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/sidex15/susfs4ksu-module/actions/runs?status=success" | \
@@ -454,7 +454,7 @@ jobs:
 
       # Download SUSFS Module (Release
       - name: Download Latest SUSFS Module from Release
-        if: ${{ github.event.inputs.SUSFS_CI == 'false' }}
+        if: ${{ env.SUSFS_CI == 'false' }}
         run: |
           wget https://github.com/sidex15/ksu_module_susfs/releases/latest/download/ksu_module_susfs_1.5.2+.zip
           cp ksu_module_susfs_1.5.2+.zip ./AnyKernel3Suki/
@@ -462,12 +462,12 @@ jobs:
       - name: Set suffix
         id: suffix
         run: |
-          echo "value=${{ github.event.inputs.KPM == 'true' && '_KPM' || '' }}${{ github.event.inputs.VFS == 'true' && '_VFS' || '' }}${{ github.event.inputs.ZRAM == 'true' && '_LZ4KD' || '' }}" >> $GITHUB_OUTPUT
+          echo "value=${{ env.KPM == 'true' && '_KPM' || '' }}${{ env.VFS == 'true' && '_VFS' || '' }}${{ env.ZRAM == 'true' && '_LZ4KD' || '' }}" >> $GITHUB_OUTPUT
 
       - name: Remove _uv suffix from FEIL
         id: feil_clean
         run: |
-          clean_feil="${{ github.event.inputs.FEIL }}"
+          clean_feil="$FEIL"
           clean_feil="${clean_feil%_v}"  # Remove _v（If-there-is）
           clean_feil="${clean_feil%_u}"  # Remove _u（If-there-is）
           echo "value=$clean_feil" >> $GITHUB_OUTPUT
@@ -482,11 +482,11 @@ jobs:
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-            -d text="❌ Kernel build failed for CPU: ${{ github.event.inputs.CPU }}, Config: ${{ github.event.inputs.FEIL }}"
+            -d text="❌ Kernel build failed for CPU: $CPU, Config: $FEIL"
             
       - name: Notify on success via Telegram
         if: success()
         run: |
             curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
               -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-              -d text="✅ Kernel build succeeded for CPU: ${{ github.event.inputs.CPU }}, Config: ${{ github.event.inputs.FEIL }}"
+              -d text="✅ Kernel build succeeded for CPU: $CPU, Config: $FEIL"
